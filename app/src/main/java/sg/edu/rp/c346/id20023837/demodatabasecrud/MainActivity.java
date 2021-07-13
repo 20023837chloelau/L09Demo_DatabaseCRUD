@@ -2,21 +2,31 @@ package sg.edu.rp.c346.id20023837.demodatabasecrud;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     Button btnAdd, btnEdit, btnRetrieve;
     EditText etContent;
+    TextView tvContent;
     ListView lv;
 
     ArrayList<Note> alNotes;
@@ -31,49 +41,82 @@ public class MainActivity extends AppCompatActivity {
         btnEdit = findViewById(R.id.btnEdit);
         btnRetrieve = findViewById(R.id.btnRetrieve);
         etContent = findViewById(R.id.etContent);
+        tvContent = findViewById(R.id.tvContent);
         lv = findViewById(R.id.lv);
 
-        alNotes = new ArrayList<>();
-        aa = new ArrayAdapter(MainActivity.this, android.R.layout.simple_list_item_1, alNotes);
+        alNotes = new ArrayList<Note>();
+        aa = new ArrayAdapter<Note>(this, android.R.layout.simple_list_item_1, alNotes);
         lv.setAdapter(aa);
 
-        btnAdd.setOnClickListener(new View.OnClickListener(){
+        btnEdit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                DBHelper db = new DBHelper(MainActivity.this);
+                Note target = alNotes.get(0);
 
-                db.insertTask(addDesc.getText().toString(), addDate.getText().toString());
-
-                addDesc.setText(null);
-                addDate.setText(null);
+                Intent i = new Intent(MainActivity.this,
+                        EditActivity.class);
+                i.putExtra("data", target);
+                startActivity(i);
             }
         });
 
-        btnGetTasks.setOnClickListener(new View.OnClickListener(){
+        btnAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String data = etContent.getText().toString();
+                DBHelper dbh = new DBHelper(MainActivity.this);
+                long inserted_id = dbh.insertNote(data);
+
+                if (inserted_id != -1){
+                    alNotes.clear();
+                    alNotes.addAll(dbh.getAllNotes());
+                    aa.notifyDataSetChanged();
+                    Toast.makeText(MainActivity.this, "Insert successful",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "Insert unsuccessful",
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        btnRetrieve.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
-                DBHelper db = new DBHelper(MainActivity.this);
+                DBHelper dbh = new DBHelper(MainActivity.this);
 
-                ArrayList<String> al = db.getTaskContent();
-                db.close();
-
-                String txt = "";
-                for (int i = 0; i < al.size(); i++) {
-                    Log.d("Database Content", i +". "+ al.get(i));
-                    txt += i + ". " + al.get(i) + "\n";
+                alNotes.clear();
+                //alNotes.addAll(dbh.getAllNotes());
+                String filterText = etContent.getText().toString().trim();
+                if(filterText.length() == 0) {
+                    alNotes.addAll(dbh.getAllNotes());
                 }
-                tvResults.setText(txt);
-
-                ArrayList<Task> al2 = db.getTasks();
-
-                alTasks.clear();
-                alTasks.addAll(al2);
+                else{
+                    alNotes.addAll(dbh.getAllNotes(filterText));
+                }
                 aa.notifyDataSetChanged();
+            }
+        });
 
-                addDesc.setText(null);
-                addDate.setText(null);
+
+        lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long identity) {
+                Note data = alNotes.get(position);
+                Intent i = new Intent(MainActivity.this,
+                        EditActivity.class);
+                i.putExtra("data", data);
+                startActivity(i);
             }
         });
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        btnRetrieve.performClick();
+    }
+
 }
